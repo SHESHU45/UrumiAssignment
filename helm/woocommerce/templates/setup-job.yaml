@@ -1,0 +1,180 @@
+{{- if .Values.setupJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-setup
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+    app.kubernetes.io/component: setup-job
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        {{- include "woocommerce.labels" . | nindent 8 }}
+        app.kubernetes.io/component: setup-job
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-wordpress
+          image: busybox:1.36
+          command: ['sh', '-c', 'echo "Waiting for WordPress to be ready..."; until nc -z -w 2 {{ include "woocommerce.fullname" . }}-wordpress 80; do echo "WordPress not ready yet..."; sleep 5; done; echo "WordPress is ready!"']
+      containers:
+        - name: wp-setup
+          image: {{ .Values.setupJob.image }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "=== WooCommerce Setup Job ==="
+              
+              WP_URL="http://{{ include "woocommerce.fullname" . }}-wordpress:80"
+              
+              # Install WordPress core
+              echo "Installing WordPress..."
+              wp core install \
+                --url="http://{{ .Values.wordpress.host }}" \
+                --title="{{ .Values.storeName }} Store" \
+                --admin_user="${WP_ADMIN_USER}" \
+                --admin_password="${WP_ADMIN_PASSWORD}" \
+                --admin_email="${WP_ADMIN_EMAIL}" \
+                --skip-email \
+                --path=/var/www/html
+              
+              # Install and activate WooCommerce with retries (version pinned for compat)
+              echo "Installing WooCommerce..."
+              for i in 1 2 3 4 5; do
+                wp plugin install woocommerce --version=9.5.1 --activate --path=/var/www/html && break
+                echo "WooCommerce install failed, retrying in 5s ($i/5)..."
+                sleep 5
+              done
+              
+              # Configure WooCommerce
+              echo "Configuring WooCommerce..."
+              wp option update woocommerce_store_address "123 Test Street" --path=/var/www/html
+              wp option update woocommerce_store_city "Test City" --path=/var/www/html
+              wp option update woocommerce_default_country "US:CA" --path=/var/www/html
+              wp option update woocommerce_store_postcode "90210" --path=/var/www/html
+              wp option update woocommerce_currency "USD" --path=/var/www/html
+              wp option update woocommerce_calc_taxes "no" --path=/var/www/html
+              
+              # Enable Cash on Delivery payment gateway
+              echo "Enabling COD payment..."
+              wp option update woocommerce_cod_settings '{"enabled":"yes","title":"Cash on Delivery","description":"Pay with cash upon delivery.","instructions":"Pay with cash upon delivery.","enable_for_methods":[],"enable_for_virtual":"yes"}' --format=json --path=/var/www/html
+              
+              # Install Storefront theme
+              echo "Installing Storefront theme..."
+              wp theme install storefront --activate --path=/var/www/html || true
+
+              # Create WooCommerce pages
+              echo "Creating WooCommerce pages..."
+              wp wc --user=admin tool run install_pages --path=/var/www/html || true
+              
+              # Set Homepage to Shop
+              echo "Setting Homepage to Shop..."
+              SHOP_PAGE_ID=$(wp post list --post_type=page --post_status=publish --name=shop --field=ID --path=/var/www/html)
+              if [ ! -z "$SHOP_PAGE_ID" ]; then
+                wp option update show_on_front 'page' --path=/var/www/html
+                wp option update page_on_front $SHOP_PAGE_ID --path=/var/www/html
+              fi
+              
+              # Set permalinks for pretty URLs
+              wp rewrite structure '/%postname%/' --path=/var/www/html
+              wp rewrite flush --path=/var/www/html
+              
+              # Create sample products
+              echo "Creating sample products..."
+              wp wc product create \
+                --user=admin \
+                --name="Classic T-Shirt" \
+                --type=simple \
+                --regular_price="29.99" \
+                --description="A comfortable classic cotton t-shirt." \
+                --short_description="Classic cotton t-shirt" \
+                --stock_quantity=100 \
+                --manage_stock=true \
+                --status=publish \
+                --path=/var/www/html || true
+              
+              wp wc product create \
+                --user=admin \
+                --name="Premium Hoodie" \
+                --type=simple \
+                --regular_price="59.99" \
+                --description="Premium quality hoodie, warm and stylish." \
+                --short_description="Premium warm hoodie" \
+                --stock_quantity=50 \
+                --manage_stock=true \
+                --status=publish \
+                --path=/var/www/html || true
+              
+              wp wc product create \
+                --user=admin \
+                --name="Running Sneakers" \
+                --type=simple \
+                --regular_price="89.99" \
+                --description="Lightweight running sneakers for everyday use." \
+                --short_description="Lightweight running sneakers" \
+                --stock_quantity=75 \
+                --manage_stock=true \
+                --status=publish \
+                --path=/var/www/html || true
+              
+              echo "=== WooCommerce Setup Complete! ==="
+              echo "Store URL: http://{{ .Values.wordpress.host }}"
+              echo "Admin: http://{{ .Values.wordpress.host }}/wp-admin"
+              echo "Admin User: ${WP_ADMIN_USER}"
+          env:
+            - name: WP_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-secrets
+                  key: wp-admin-user
+            - name: WP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-secrets
+                  key: wp-admin-password
+            - name: WP_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-secrets
+                  key: wp-admin-email
+            - name: WORDPRESS_DB_HOST
+              value: {{ include "woocommerce.fullname" . }}-mysql:3306
+            - name: WORDPRESS_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-secrets
+                  key: mysql-database
+            - name: WORDPRESS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-secrets
+                  key: mysql-user
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-secrets
+                  key: mysql-password
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          volumeMounts:
+            - name: wordpress-data
+              mountPath: /var/www/html
+      volumes:
+        {{- if .Values.wordpress.persistence.enabled }}
+        - name: wordpress-data
+          persistentVolumeClaim:
+            claimName: {{ include "woocommerce.fullname" . }}-wordpress
+        {{- else }}
+        - name: wordpress-data
+          emptyDir: {}
+        {{- end }}
+{{- end }}

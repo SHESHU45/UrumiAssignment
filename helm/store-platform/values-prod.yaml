@@ -1,0 +1,41 @@
+# Production (VPS/k3s) overrides
+global:
+  storeDomain: yourdomain.com
+
+backend:
+  imagePullPolicy: Always
+  replicas: 2
+  config:
+    maxConcurrentProvisions: "5"
+    maxTotalStores: "100"
+    rateLimitMax: "200"
+  persistence:
+    storageClass: local-path
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 300m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+dashboard:
+  imagePullPolicy: Always
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+ingress:
+  className: nginx
+  dashboardHost: dashboard.yourdomain.com
+  apiHost: api.yourdomain.com
+  tls: true
+  # Uncomment for cert-manager
+  # annotations:
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod

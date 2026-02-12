@@ -1,0 +1,22 @@
+# Local (Kind) overrides
+global:
+  storeDomain: store.localhost
+
+backend:
+  imagePullPolicy: Never
+  replicas: 1
+  config:
+    maxConcurrentProvisions: "2"
+    maxTotalStores: "20"
+  persistence:
+    storageClass: standard
+
+dashboard:
+  imagePullPolicy: Never
+  replicas: 1
+
+ingress:
+  className: nginx
+  dashboardHost: dashboard.store.localhost
+  apiHost: api.store.localhost
+  tls: false

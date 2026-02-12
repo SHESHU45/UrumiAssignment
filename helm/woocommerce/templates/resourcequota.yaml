@@ -1,0 +1,15 @@
+{{- if .Values.resourceQuota.enabled }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-quota
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  hard:
+    cpu: {{ .Values.resourceQuota.hard.cpu | quote }}
+    memory: {{ .Values.resourceQuota.hard.memory | quote }}
+    pods: {{ .Values.resourceQuota.hard.pods | quote }}
+    persistentvolumeclaims: {{ .Values.resourceQuota.hard.persistentvolumeclaims | quote }}
+    requests.storage: {{ index .Values.resourceQuota.hard "requests.storage" | quote }}
+{{- end }}

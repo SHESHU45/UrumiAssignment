@@ -1,0 +1,56 @@
+# Default values for store-platform
+global:
+  storeDomain: store.localhost
+
+backend:
+  image: store-platform-backend:latest
+  imagePullPolicy: IfNotPresent
+  replicas: 1
+  port: 3001
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  config:
+    maxConcurrentProvisions: "3"
+    provisioningTimeoutMs: "600000"
+    reconcileIntervalMs: "30000"
+    rateLimitMax: "100000"
+    createStoreLimitMax: "5"
+    maxStoresPerUser: "10"
+    maxTotalStores: "50"
+    helmChartPath: "/app/helm/woocommerce"
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+
+dashboard:
+  image: store-platform-dashboard:latest
+  imagePullPolicy: IfNotPresent
+  replicas: 1
+  port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  dashboardHost: dashboard.store.localhost
+  apiHost: api.store.localhost
+  tls: false
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: store-platform-backend

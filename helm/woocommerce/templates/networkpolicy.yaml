@@ -1,0 +1,170 @@
+{{- if .Values.networkPolicy.enabled }}
+# Default deny all ingress and egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-default-deny
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Allow WordPress to talk to MySQL
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-wp-to-mysql
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "woocommerce.wordpress.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow to MySQL
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "woocommerce.mysql.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: 3306
+          protocol: TCP
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# Allow MySQL to accept connections from WordPress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-mysql-from-wp
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "woocommerce.mysql.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "woocommerce.wordpress.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: 3306
+          protocol: TCP
+---
+# Allow ingress traffic to WordPress from ingress controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-allow-ingress
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "woocommerce.wordpress.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 80
+          protocol: TCP
+---
+# Allow WordPress egress for external API calls (plugin updates, etc)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-wp-external
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "woocommerce.wordpress.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow HTTPS outbound (for plugin downloads, API calls)
+    - to: []
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+{{- end }}
+---
+# Allow Setup Job Egress (Internet + Cluster)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-setup-egress
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: setup-job
+  policyTypes:
+    - Egress
+  egress:
+    - {}
+---
+# Allow WordPress to accept connections from Setup Job
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-wp-from-setup
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "woocommerce.wordpress.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: setup-job
+      ports:
+        - port: 80
+          protocol: TCP
+---
+# Allow MySQL to accept connections from Setup Job
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-mysql-from-setup
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "woocommerce.mysql.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: setup-job
+      ports:
+        - port: 3306
+          protocol: TCP

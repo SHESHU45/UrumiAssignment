@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build output
+dashboard/dist/
+
+# Database
+*.db
+backend/data/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+
+# Archives
+*.zip
+
+# Logs
+*.log
+
+# Temp debug files
+debug-store-*.yaml
+fix-*.yaml
+reset-pw-*.yaml
+setup-job-debug.yaml
+manual-configmap-update.yaml
+update_images.sh
+
+# Interview prep (not a deliverable)
+docs/concepts-guide.md

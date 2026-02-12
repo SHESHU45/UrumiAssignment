@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "platform.fullname" . }}-config
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+data:
+  STORE_DOMAIN: {{ .Values.global.storeDomain | quote }}
+  MAX_CONCURRENT_PROVISIONS: {{ .Values.backend.config.maxConcurrentProvisions | quote }}
+  PROVISIONING_TIMEOUT_MS: {{ .Values.backend.config.provisioningTimeoutMs | quote }}
+  RECONCILE_INTERVAL_MS: {{ .Values.backend.config.reconcileIntervalMs | quote }}
+  RATE_LIMIT_MAX: {{ .Values.backend.config.rateLimitMax | quote }}
+  CREATE_STORE_LIMIT_MAX: {{ .Values.backend.config.createStoreLimitMax | quote }}
+  MAX_STORES_PER_USER: {{ .Values.backend.config.maxStoresPerUser | quote }}
+  MAX_TOTAL_STORES: {{ .Values.backend.config.maxTotalStores | quote }}
+  HELM_CHART_PATH: {{ .Values.backend.config.helmChartPath | quote }}
+  DASHBOARD_URL: "http://{{ .Values.ingress.dashboardHost }}"

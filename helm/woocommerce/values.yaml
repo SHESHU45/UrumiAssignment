@@ -1,0 +1,82 @@
+# Default values for woocommerce-store
+storeName: "default-store"
+storeId: "00000000"
+
+# WordPress
+wordpress:
+  image: wordpress:6.7-apache
+  replicas: 1
+  host: "store.localhost"
+  adminUser: admin
+  adminPassword: changeme
+  adminEmail: admin@store.localhost
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClass: ""
+
+# MySQL
+mysql:
+  image: mysql:8.0
+  rootPassword: changeme
+  database: wordpress
+  user: wordpress
+  password: changeme
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  host: "store.localhost"
+  tls: false
+  tlsSecret: ""
+
+# Network Policies
+networkPolicy:
+  enabled: true
+
+# Resource Quota
+resourceQuota:
+  enabled: true
+  hard:
+    cpu: "2"
+    memory: 2Gi
+    pods: "10"
+    persistentvolumeclaims: "5"
+    requests.storage: 20Gi
+
+# Limit Range
+limitRange:
+  enabled: true
+  default:
+    cpu: 500m
+    memory: 512Mi
+  defaultRequest:
+    cpu: 100m
+    memory: 128Mi
+  max:
+    cpu: "1"
+    memory: 1Gi
+
+# WooCommerce Setup Job
+setupJob:
+  enabled: true
+  image: wordpress:cli-2.10-php8.3
