@@ -223,7 +223,6 @@ kind delete cluster --name store-platform
 ## 📚 Documentation
 
 - [System Design & Tradeoffs](docs/system-design.md)
-- [Concepts Guide (Interview Prep)](docs/concepts-guide.md)
 
 ## 🏅 Standout Features
 
